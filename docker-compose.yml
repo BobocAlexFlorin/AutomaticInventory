@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: inventory_db
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SA_PASSWORD}
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - db_data:/var/opt/mssql
+
+  backend:
+    build: ./backend
+    container_name: inventory_backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=mssql+pyodbc://${DB_USER}:${DB_PASSWORD}@db:1433/${DB_NAME}?driver=ODBC+Driver+18+for+SQL+Server
+      - SECRET_KEY=${SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: inventory_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=${API_URL}
+    ports:
+      - "3000:80"
+
+volumes:
+  db_data:

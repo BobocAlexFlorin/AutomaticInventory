@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f9fafc; }
+    .navbar { background-color: #002d72; }
+    .navbar-brand { font-weight: bold; color: white !important; }
+    .card { border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .scanner-box { font-size: 1.2rem; letter-spacing: 2px; text-align: center; border: 2px dashed #ccc; border-radius: 12px; padding: 2rem; background: #fff; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+      <span class="navbar-brand">📦 Inventory Manager</span>
+      <button id="loginBtn" class="btn btn-light btn-sm">Login</button>
+    </div>
+  </nav>
+
+  <div class="container my-5">
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card p-4">
+          <h4 class="mb-3">Scan Device</h4>
+          <input type="text" id="scannerInput" class="form-control scanner-box" placeholder="Scan barcode or QR code here..." autofocus>
+          <small class="text-muted">Use keyboard scanner or Zebra device (DataWedge HTTP posts).</small>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h4 class="mb-3">My Devices</h4>
+          <table class="table table-hover" id="deviceTable">
+            <thead class="table-light">
+              <tr>
+                <th>Serial</th>
+                <th>Model</th>
+                <th>Vendor</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_URL = "http://localhost:8000/api"; // update to your backend
+    const USER_ID = 1; // demo user ID
+    const scannerInput = document.getElementById("scannerInput");
+    const deviceTableBody = document.querySelector("#deviceTable tbody");
+
+    // Fetch and render devices
+    async function fetchDevices() {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/users/${USER_ID}/devices`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const devices = await res.json();
+      renderDevices(devices);
+    }
+
+    function renderDevices(devices) {
+      deviceTableBody.innerHTML = "";
+      devices.forEach(d => {
+        const row = `
+          <tr>
+            <td>${d.serial_number}</td>
+            <td>${d.model || "-"}</td>
+            <td>${d.vendor || "-"}</td>
+            <td>${d.category || "Unknown"}</td>
+          </tr>`;
+        deviceTableBody.insertAdjacentHTML("beforeend", row);
+      });
+    }
+
+    // Keyboard scanner listener
+    scannerInput.addEventListener("keypress", async (e) => {
+      if (e.key === "Enter") {
+        const serial = e.target.value.trim();
+        if (!serial) return;
+        const token = localStorage.getItem("token");
+        await fetch(`${API_URL}/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ serial_number: serial, user_id: USER_ID })
+        });
+        e.target.value = "";
+        fetchDevices();
+      }
+    });
+
+    // Poll backend for new devices every 3 seconds (captures DataWedge HTTP posts)
+    setInterval(fetchDevices, 3000);
+
+    // Login button placeholder
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      alert("Login with Azure AD will go here.");
+    });
+
+    // Initial load
+    fetchDevices();
+  </script>
+</body>
+</html>
